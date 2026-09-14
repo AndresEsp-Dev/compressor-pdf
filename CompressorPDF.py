@@ -3,14 +3,14 @@ import zipfile
 import streamlit as st
 import pymupdf
 
-# Configuración de la página (layout="wide" para aprovechar todo el ancho de la pantalla)
+# Configuración de la página en modo ancho (wide)
 st.set_page_config(
     page_title="Compresor de PDF | AppLogic Solutions", 
     page_icon="⚡", 
     layout="wide"
 )
 
-# Estilos CSS mejorados para un diseño amplio y profesional
+# Estilos CSS profesionales
 st.markdown("""
     <style>
     .stApp {
@@ -74,16 +74,26 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Inicializar memoria de sesión
+# Inicializar variables de estado en la sesión
 if "processed_files" not in st.session_state:
     st.session_state.processed_files = {}
 if "file_stats" not in st.session_state:
     st.session_state.file_stats = {}
+if "uploader_counter" not in st.session_state:
+    st.session_state.uploader_counter = 0
 
-# Contenedor de subida de archivos
-uploaded_files = st.file_uploader("📂 Selecciona o arrastra tus archivos PDF aquí", type="pdf", accept_multiple_files=True)
+# Clave dinámica para forzar el reseteo del file_uploader
+uploader_key = f"uploader_{st.session_state.uploader_counter}"
 
-# Selector de nivel de compresión con los textos exactos solicitados
+# Contenedor de subida de archivos vinculado a la clave dinámica
+uploaded_files = st.file_uploader(
+    "📂 Selecciona o arrastra tus archivos PDF aquí", 
+    type="pdf", 
+    accept_multiple_files=True,
+    key=uploader_key
+)
+
+# Selector de nivel de compresión
 nivel_opcion = st.selectbox(
     "⚙️ Selecciona el Nivel de Compresión",
     options=["bajo", "medio", "maximo"],
@@ -116,7 +126,7 @@ if uploaded_files:
         for i, uploaded_file in enumerate(uploaded_files):
             with st.spinner(f"Procesando: {uploaded_file.name}..."):
                 bytes_data = uploaded_file.read()
-                size_orig = len(bytes_data) / 1024 # KB
+                size_orig = len(bytes_data) / 1024
                 
                 doc_orig = pymupdf.open(stream=bytes_data, filetype="pdf")
                 doc_nuevo = pymupdf.open()
@@ -129,17 +139,14 @@ if uploaded_files:
                     nueva_pagina.insert_image(nueva_pagina.rect, stream=img_bytes)
                     
                 output_bytes = doc_nuevo.tobytes()
-                size_comp = len(output_bytes) / 1024 # KB
+                size_comp = len(output_bytes) / 1024
                 
                 doc_orig.close()
                 doc_nuevo.close()
                 
-                # Nombre del archivo final: Optimizado-{nivel}-{nombre_original}.pdf
                 nombre_salida = f"Optimizado-{nivel_opcion}-{uploaded_file.name}"
-                
                 st.session_state.processed_files[nombre_salida] = output_bytes
                 
-                # Guardar estadísticas de peso para mostrar visualmente
                 ahorro = 100 - (size_comp / size_orig * 100) if size_orig > 0 else 0
                 st.session_state.file_stats[nombre_salida] = {
                     "orig": f"{size_orig / 1024:.2f} MB" if size_orig > 1024 else f"{size_orig:.2f} KB",
@@ -156,7 +163,6 @@ if st.session_state.processed_files:
     st.markdown("---")
     st.subheader("📦 Resultados Listos para Descargar")
     
-    # Botón global para descargar todo en un archivo ZIP
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for filename, data in st.session_state.processed_files.items():
@@ -175,19 +181,19 @@ if st.session_state.processed_files:
         )
         
     with col_reset:
-        # Botón de limpiar con confirmación de seguridad
         confirmar_limpieza = st.checkbox("⚠️ Confirmar limpieza")
         if st.button("🔄 Limpiar y Reiniciar", use_container_width=True):
             if confirmar_limpieza:
                 st.session_state.processed_files = {}
                 st.session_state.file_stats = {}
+                # Incrementamos el contador para cambiar la clave del file_uploader y vaciarlo
+                st.session_state.uploader_counter += 1
                 st.rerun()
             else:
                 st.warning("Marca la casilla de confirmación.")
 
     st.write("")
     
-    # Menú desplegable con la grilla de archivos, pesos y descargas individuales
     with st.expander("📂 Ver detalles de compresión y descargar archivos uno a uno", expanded=True):
         for filename, data in st.session_state.processed_files.items():
             stats = st.session_state.file_stats.get(filename, {"orig": "N/A", "comp": "N/A", "ahorro": "N/A"})
