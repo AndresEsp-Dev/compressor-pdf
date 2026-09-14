@@ -3,22 +3,21 @@ import zipfile
 import streamlit as st
 import pymupdf
 
-# Configuración de la página en modo ancho para aprovechar pantallas de cualquier tamaño
+# Configuración de la página en modo ancho para responsividad total
 st.set_page_config(
     page_title="Compresor de PDF | AppLogic Solutions", 
     page_icon="⚡", 
     layout="wide"
 )
 
-# Estilos CSS mejorados para centrar elementos, mejorar responsividad y dar un aspecto profesional
+# Estilos CSS avanzados para centrar elementos y optimizar la interfaz
 st.markdown("""
     <style>
     .stApp {
         background-color: #0e1117;
     }
-    /* Contenedor central adaptable para pantallas de cualquier tamaño */
     .main-wrapper {
-        max-width: 900px;
+        max-width: 950px;
         margin: 0 auto;
         padding: 0 20px;
     }
@@ -73,12 +72,15 @@ st.markdown("""
         margin-bottom: 20px;
         text-align: center;
     }
-    .file-card {
+    .file-row {
         background: #1e293b;
         padding: 15px 20px;
         border-radius: 10px;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         border: 1px solid #334155;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
     .footer {
         text-align: center;
@@ -91,11 +93,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Contenedor central principal para responsividad
 with st.container():
     st.markdown('<div class="main-wrapper">', unsafe_allow_html=True)
 
-    # Encabezado visual de AppLogic Solutions
+    # Banner Fijo y Centrado de AppLogic Solutions
     st.markdown("""
         <div class="hero-container">
             <div class="company-badge">AppLogic Solutions</div>
@@ -104,14 +105,14 @@ with st.container():
         </div>
     """, unsafe_allow_html=True)
 
-    # Nota de privacidad mejorada
+    # Nota de Privacidad
     st.markdown("""
         <div class="privacy-notice">
             🔒 <b>Política de Privacidad y Confidencialidad:</b> Tus archivos no se almacenan en ningún servidor ni base de datos externa. Todo el procesamiento se realiza de forma temporal y privada en memoria RAM exclusivamente para tu tranquilidad.
         </div>
     """, unsafe_allow_html=True)
 
-    # Inicializar variables de estado en la sesión
+    # Inicializar estado de sesión
     if "processed_files" not in st.session_state:
         st.session_state.processed_files = {}
     if "file_stats" not in st.session_state:
@@ -121,7 +122,7 @@ with st.container():
 
     uploader_key = f"uploader_{st.session_state.uploader_counter}"
 
-    # Contenedor de subida de archivos
+    # Carga de archivos centrada
     uploaded_files = st.file_uploader(
         "📂 Selecciona o arrastra tus archivos PDF aquí", 
         type="pdf", 
@@ -129,7 +130,7 @@ with st.container():
         key=uploader_key
     )
 
-    # Selector de nivel de compresión con textos profesionales y claros
+    # Selector de nivel de compresión
     nivel_opcion = st.selectbox(
         "⚙️ Selecciona el Nivel de Compresión",
         options=["bajo", "medio", "maximo"],
@@ -143,7 +144,6 @@ with st.container():
 
     st.write("")
 
-    # Botón de compresión de alta presencia visual
     if uploaded_files:
         if st.button("🚀 Iniciar Compresión de Archivos", type="primary", use_container_width=True):
             configuraciones = {
@@ -197,62 +197,68 @@ with st.container():
     # Sección de resultados y descargas
     if st.session_state.processed_files:
         st.markdown("---")
-        st.subheader("📦 Resultados Listos para Descargar")
         
-        # Nota importante antes de cerrar la ventana
+        # Fila superior de control con el botón de limpiar con icono de escoba y ZIP
+        col_title, col_action = st.columns([2, 2])
+        with col_title:
+            st.subheader("📦 Resultados Listos para Descargar")
+            
+        with col_action:
+            col_zip_btn, col_clean_btn = st.columns([2, 1])
+            with col_zip_btn:
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                    for filename, data in st.session_state.processed_files.items():
+                        zip_file.writestr(filename, data)
+                zip_buffer.seek(0)
+                
+                st.download_button(
+                    label="📥 Descargar ZIP",
+                    data=zip_buffer,
+                    file_name="pdfs_optimizados_applogic.zip",
+                    mime="application/zip",
+                    type="primary",
+                    use_container_width=True
+                )
+            with col_clean_btn:
+                confirmar_limpieza = st.checkbox("Confirmar")
+                if st.button("🧹 Limpiar", use_container_width=True):
+                    if confirmar_limpieza:
+                        st.session_state.processed_files = {}
+                        st.session_state.file_stats = {}
+                        st.session_state.uploader_counter += 1
+                        st.rerun()
+                    else:
+                        st.warning("Marque la casilla.")
+
+        # Aviso Importante
         st.markdown("""
             <div class="warning-notice">
                 ⚠️ <b>Aviso Importante:</b> Antes de cerrar o recargar esta ventana, por favor asegúrese de descargar todos sus archivos procesados, ya que se eliminarán automáticamente de la memoria una vez finalice su sesión.
             </div>
         """, unsafe_allow_html=True)
         
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            for filename, data in st.session_state.processed_files.items():
-                zip_file.writestr(filename, data)
-        zip_buffer.seek(0)
-        
-        col_zip, col_reset = st.columns([3, 1])
-        with col_zip:
-            st.download_button(
-                label="📥 Descargar Todos los Archivos en ZIP",
-                data=zip_buffer,
-                file_name="pdfs_optimizados_applogic.zip",
-                mime="application/zip",
-                type="primary",
-                use_container_width=True
-            )
-            
-        with col_reset:
-            confirmar_limpieza = st.checkbox("⚠️ Confirmar limpieza")
-            if st.button("🔄 Limpiar y Reiniciar", use_container_width=True):
-                if confirmar_limpieza:
-                    st.session_state.processed_files = {}
-                    st.session_state.file_stats = {}
-                    st.session_state.uploader_counter += 1
-                    st.rerun()
-                else:
-                    st.warning("Marque la casilla de confirmación.")
-
         st.write("")
         
+        # Lista de archivos con botón de descarga individual en la misma línea
         with st.expander("📂 Ver detalles de reducción de peso y descargar archivos de forma individual", expanded=True):
             for filename, data in st.session_state.processed_files.items():
                 stats = st.session_state.file_stats.get(filename, {"orig": "N/A", "comp": "N/A", "ahorro": "N/A"})
                 
-                st.markdown(f"""
-                    <div class="file-card">
-                        <b>📄 {filename}</b><br>
-                        <span style="color: #94a3b8; font-size: 0.9rem;">
-                            Peso original: <b>{stats['orig']}</b> | 
-                            Peso final optimizado: <b style="color: #38bdf8;">{stats['comp']}</b> | 
-                            Reducción lograda: <b style="color: #4ade80;">Ahorro del {stats['ahorro']}</b>
-                        </span>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                col_info, col_btn = st.columns([3, 1])
-                with col_btn:
+                col_file_info, col_file_btn = st.columns([4, 1])
+                with col_file_info:
+                    st.markdown(f"""
+                        <div style="background: #1e293b; padding: 12px 15px; border-radius: 8px; border: 1px solid #334155;">
+                            <b>📄 {filename}</b><br>
+                            <span style="color: #94a3b8; font-size: 0.85rem;">
+                                Original: <b>{stats['orig']}</b> | 
+                                Optimizado: <b style="color: #38bdf8;">{stats['comp']}</b> | 
+                                Ahorro: <b style="color: #4ade80;">{stats['ahorro']}</b>
+                            </span>
+                        </div>
+                    """, unsafe_allow_html=True)
+                with col_file_btn:
+                    st.write("") # Pequeño ajuste visual de margen vertical
                     st.download_button(
                         label="⬇️ Descargar",
                         data=data,
