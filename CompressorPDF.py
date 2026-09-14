@@ -3,18 +3,24 @@ import zipfile
 import streamlit as st
 import pymupdf
 
-# Configuración de la página en modo ancho (wide)
+# Configuración de la página en modo ancho para aprovechar pantallas de cualquier tamaño
 st.set_page_config(
     page_title="Compresor de PDF | AppLogic Solutions", 
     page_icon="⚡", 
     layout="wide"
 )
 
-# Estilos CSS profesionales
+# Estilos CSS mejorados para centrar elementos, mejorar responsividad y dar un aspecto profesional
 st.markdown("""
     <style>
     .stApp {
         background-color: #0e1117;
+    }
+    /* Contenedor central adaptable para pantallas de cualquier tamaño */
+    .main-wrapper {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 20px;
     }
     .hero-container {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -47,6 +53,26 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 1px;
     }
+    .privacy-notice {
+        background-color: #1e293b;
+        border-left: 4px solid #38bdf8;
+        padding: 12px 18px;
+        border-radius: 6px;
+        color: #cbd5e1;
+        font-size: 0.95rem;
+        margin-bottom: 25px;
+        text-align: center;
+    }
+    .warning-notice {
+        background-color: #451a03;
+        border-left: 4px solid #f59e0b;
+        padding: 12px 18px;
+        border-radius: 6px;
+        color: #fde68a;
+        font-size: 0.95rem;
+        margin-bottom: 20px;
+        text-align: center;
+    }
     .file-card {
         background: #1e293b;
         padding: 15px 20px;
@@ -65,165 +91,183 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Encabezado visual de AppLogic Solutions
-st.markdown("""
-    <div class="hero-container">
-        <div class="company-badge">AppLogic Solutions</div>
-        <h1>Compresor de PDF Inteligente</h1>
-        <p>Optimiza el peso de tus documentos al instante conservando la mejor calidad visual.</p>
-    </div>
-""", unsafe_allow_html=True)
+# Contenedor central principal para responsividad
+with st.container():
+    st.markdown('<div class="main-wrapper">', unsafe_allow_html=True)
 
-# Inicializar variables de estado en la sesión
-if "processed_files" not in st.session_state:
-    st.session_state.processed_files = {}
-if "file_stats" not in st.session_state:
-    st.session_state.file_stats = {}
-if "uploader_counter" not in st.session_state:
-    st.session_state.uploader_counter = 0
+    # Encabezado visual de AppLogic Solutions
+    st.markdown("""
+        <div class="hero-container">
+            <div class="company-badge">AppLogic Solutions</div>
+            <h1>Compresor de PDF Inteligente</h1>
+            <p>Optimiza el peso de tus documentos al instante conservando la mejor calidad visual.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-# Clave dinámica para forzar el reseteo del file_uploader
-uploader_key = f"uploader_{st.session_state.uploader_counter}"
+    # Nota de privacidad mejorada
+    st.markdown("""
+        <div class="privacy-notice">
+            🔒 <b>Política de Privacidad y Confidencialidad:</b> Tus archivos no se almacenan en ningún servidor ni base de datos externa. Todo el procesamiento se realiza de forma temporal y privada en memoria RAM exclusivamente para tu tranquilidad.
+        </div>
+    """, unsafe_allow_html=True)
 
-# Contenedor de subida de archivos vinculado a la clave dinámica
-uploaded_files = st.file_uploader(
-    "📂 Selecciona o arrastra tus archivos PDF aquí", 
-    type="pdf", 
-    accept_multiple_files=True,
-    key=uploader_key
-)
-
-# Selector de nivel de compresión
-nivel_opcion = st.selectbox(
-    "⚙️ Selecciona el Nivel de Compresión",
-    options=["bajo", "medio", "maximo"],
-    format_func=lambda x: {
-        "bajo": "Bajo (Mejor Calidad Visual / Minima Reducción del Peso)", 
-        "medio": "Medio (Recomendado / Peso Equilibrado)", 
-        "maximo": "Maximo (Menor Calidad Visual / Menor Peso)"
-    }[x],
-    index=1
-)
-
-st.write("")
-
-# Botón de compresión
-if uploaded_files:
-    if st.button("🚀 Comprimir Archivos Ahora", type="primary", use_container_width=True):
-        configuraciones = {
-            "bajo": {"dpi": 150, "quality": 80},
-            "medio": {"dpi": 120, "quality": 60},
-            "maximo": {"dpi": 90, "quality": 30}
-        }
-        params = configuraciones[nivel_opcion]
-        
+    # Inicializar variables de estado en la sesión
+    if "processed_files" not in st.session_state:
         st.session_state.processed_files = {}
+    if "file_stats" not in st.session_state:
         st.session_state.file_stats = {}
-        
-        progress_bar = st.progress(0)
-        total_files = len(uploaded_files)
-        
-        for i, uploaded_file in enumerate(uploaded_files):
-            with st.spinner(f"Procesando: {uploaded_file.name}..."):
-                bytes_data = uploaded_file.read()
-                size_orig = len(bytes_data) / 1024
-                
-                doc_orig = pymupdf.open(stream=bytes_data, filetype="pdf")
-                doc_nuevo = pymupdf.open()
-                
-                for pagina in doc_orig:
-                    pix = pagina.get_pixmap(dpi=params["dpi"])
-                    img_bytes = pix.tobytes("jpeg", jpg_quality=params["quality"])
-                    
-                    nueva_pagina = doc_nuevo.new_page(width=pagina.rect.width, height=pagina.rect.height)
-                    nueva_pagina.insert_image(nueva_pagina.rect, stream=img_bytes)
-                    
-                output_bytes = doc_nuevo.tobytes()
-                size_comp = len(output_bytes) / 1024
-                
-                doc_orig.close()
-                doc_nuevo.close()
-                
-                nombre_salida = f"Optimizado-{nivel_opcion}-{uploaded_file.name}"
-                st.session_state.processed_files[nombre_salida] = output_bytes
-                
-                ahorro = 100 - (size_comp / size_orig * 100) if size_orig > 0 else 0
-                st.session_state.file_stats[nombre_salida] = {
-                    "orig": f"{size_orig / 1024:.2f} MB" if size_orig > 1024 else f"{size_orig:.2f} KB",
-                    "comp": f"{size_comp / 1024:.2f} MB" if size_comp > 1024 else f"{size_comp:.2f} KB",
-                    "ahorro": f"{ahorro:.1f}%"
-                }
-                
-                progress_bar.progress((i + 1) / total_files)
-                
-        st.success("¡Todos los archivos han sido optimizados con éxito!")
+    if "uploader_counter" not in st.session_state:
+        st.session_state.uploader_counter = 0
 
-# Sección de resultados y descargas
-if st.session_state.processed_files:
-    st.markdown("---")
-    st.subheader("📦 Resultados Listos para Descargar")
-    
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        for filename, data in st.session_state.processed_files.items():
-            zip_file.writestr(filename, data)
-    zip_buffer.seek(0)
-    
-    col_zip, col_reset = st.columns([3, 1])
-    with col_zip:
-        st.download_button(
-            label="📥 Descargar Todos los Archivos (.ZIP)",
-            data=zip_buffer,
-            file_name="pdfs_optimizados_applogic.zip",
-            mime="application/zip",
-            type="primary",
-            use_container_width=True
-        )
-        
-    with col_reset:
-        confirmar_limpieza = st.checkbox("⚠️ Confirmar limpieza")
-        if st.button("🔄 Limpiar y Reiniciar", use_container_width=True):
-            if confirmar_limpieza:
-                st.session_state.processed_files = {}
-                st.session_state.file_stats = {}
-                # Incrementamos el contador para cambiar la clave del file_uploader y vaciarlo
-                st.session_state.uploader_counter += 1
-                st.rerun()
-            else:
-                st.warning("Marca la casilla de confirmación.")
+    uploader_key = f"uploader_{st.session_state.uploader_counter}"
+
+    # Contenedor de subida de archivos
+    uploaded_files = st.file_uploader(
+        "📂 Selecciona o arrastra tus archivos PDF aquí", 
+        type="pdf", 
+        accept_multiple_files=True,
+        key=uploader_key
+    )
+
+    # Selector de nivel de compresión con textos profesionales y claros
+    nivel_opcion = st.selectbox(
+        "⚙️ Selecciona el Nivel de Compresión",
+        options=["bajo", "medio", "maximo"],
+        format_func=lambda x: {
+            "bajo": "Bajo — Mejor Calidad Visual (Mínima reducción de peso)", 
+            "medio": "Medio — Recomendado (Equilibrio ideal entre peso y calidad)", 
+            "maximo": "Máximo — Máxima Compresión (Menor peso posible para archivos pesados)"
+        }[x],
+        index=1
+    )
 
     st.write("")
-    
-    with st.expander("📂 Ver detalles de compresión y descargar archivos uno a uno", expanded=True):
-        for filename, data in st.session_state.processed_files.items():
-            stats = st.session_state.file_stats.get(filename, {"orig": "N/A", "comp": "N/A", "ahorro": "N/A"})
-            
-            st.markdown(f"""
-                <div class="file-card">
-                    <b>📄 {filename}</b><br>
-                    <span style="color: #94a3b8; font-size: 0.9rem;">
-                        Peso original: <b>{stats['orig']}</b> | 
-                        Peso final: <b style="color: #38bdf8;">{stats['comp']}</b> | 
-                        Reducción: <b style="color: #4ade80;">Ahorro del {stats['ahorro']}</b>
-                    </span>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            col_info, col_btn = st.columns([3, 1])
-            with col_btn:
-                st.download_button(
-                    label="⬇️ Descargar",
-                    data=data,
-                    file_name=filename,
-                    mime="application/pdf",
-                    key=filename,
-                    use_container_width=True
-                )
-            st.write("")
 
-# Pie de página corporativo
-st.markdown("""
-    <div class="footer">
-        Desarrollado con pasión por <b>AppLogic Solutions</b> 🚀 | Todos los derechos reservados.
-    </div>
-""", unsafe_allow_html=True)
+    # Botón de compresión de alta presencia visual
+    if uploaded_files:
+        if st.button("🚀 Iniciar Compresión de Archivos", type="primary", use_container_width=True):
+            configuraciones = {
+                "bajo": {"dpi": 150, "quality": 80},
+                "medio": {"dpi": 120, "quality": 60},
+                "maximo": {"dpi": 90, "quality": 30}
+            }
+            params = configuraciones[nivel_opcion]
+            
+            st.session_state.processed_files = {}
+            st.session_state.file_stats = {}
+            
+            progress_bar = st.progress(0)
+            total_files = len(uploaded_files)
+            
+            for i, uploaded_file in enumerate(uploaded_files):
+                with st.spinner(f"Procesando: {uploaded_file.name}..."):
+                    bytes_data = uploaded_file.read()
+                    size_orig = len(bytes_data) / 1024
+                    
+                    doc_orig = pymupdf.open(stream=bytes_data, filetype="pdf")
+                    doc_nuevo = pymupdf.open()
+                    
+                    for pagina in doc_orig:
+                        pix = pagina.get_pixmap(dpi=params["dpi"])
+                        img_bytes = pix.tobytes("jpeg", jpg_quality=params["quality"])
+                        
+                        nueva_pagina = doc_nuevo.new_page(width=pagina.rect.width, height=pagina.rect.height)
+                        nueva_pagina.insert_image(nueva_pagina.rect, stream=img_bytes)
+                        
+                    output_bytes = doc_nuevo.tobytes()
+                    size_comp = len(output_bytes) / 1024
+                    
+                    doc_orig.close()
+                    doc_nuevo.close()
+                    
+                    nombre_salida = f"Optimizado-{nivel_opcion}-{uploaded_file.name}"
+                    st.session_state.processed_files[nombre_salida] = output_bytes
+                    
+                    ahorro = 100 - (size_comp / size_orig * 100) if size_orig > 0 else 0
+                    st.session_state.file_stats[nombre_salida] = {
+                        "orig": f"{size_orig / 1024:.2f} MB" if size_orig > 1024 else f"{size_orig:.2f} KB",
+                        "comp": f"{size_comp / 1024:.2f} MB" if size_comp > 1024 else f"{size_comp:.2f} KB",
+                        "ahorro": f"{ahorro:.1f}%"
+                    }
+                    
+                    progress_bar.progress((i + 1) / total_files)
+                    
+            st.success("¡Todos los archivos han sido optimizados con éxito!")
+
+    # Sección de resultados y descargas
+    if st.session_state.processed_files:
+        st.markdown("---")
+        st.subheader("📦 Resultados Listos para Descargar")
+        
+        # Nota importante antes de cerrar la ventana
+        st.markdown("""
+            <div class="warning-notice">
+                ⚠️ <b>Aviso Importante:</b> Antes de cerrar o recargar esta ventana, por favor asegúrese de descargar todos sus archivos procesados, ya que se eliminarán automáticamente de la memoria una vez finalice su sesión.
+            </div>
+        """, unsafe_allow_html=True)
+        
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for filename, data in st.session_state.processed_files.items():
+                zip_file.writestr(filename, data)
+        zip_buffer.seek(0)
+        
+        col_zip, col_reset = st.columns([3, 1])
+        with col_zip:
+            st.download_button(
+                label="📥 Descargar Todos los Archivos en ZIP",
+                data=zip_buffer,
+                file_name="pdfs_optimizados_applogic.zip",
+                mime="application/zip",
+                type="primary",
+                use_container_width=True
+            )
+            
+        with col_reset:
+            confirmar_limpieza = st.checkbox("⚠️ Confirmar limpieza")
+            if st.button("🔄 Limpiar y Reiniciar", use_container_width=True):
+                if confirmar_limpieza:
+                    st.session_state.processed_files = {}
+                    st.session_state.file_stats = {}
+                    st.session_state.uploader_counter += 1
+                    st.rerun()
+                else:
+                    st.warning("Marque la casilla de confirmación.")
+
+        st.write("")
+        
+        with st.expander("📂 Ver detalles de reducción de peso y descargar archivos de forma individual", expanded=True):
+            for filename, data in st.session_state.processed_files.items():
+                stats = st.session_state.file_stats.get(filename, {"orig": "N/A", "comp": "N/A", "ahorro": "N/A"})
+                
+                st.markdown(f"""
+                    <div class="file-card">
+                        <b>📄 {filename}</b><br>
+                        <span style="color: #94a3b8; font-size: 0.9rem;">
+                            Peso original: <b>{stats['orig']}</b> | 
+                            Peso final optimizado: <b style="color: #38bdf8;">{stats['comp']}</b> | 
+                            Reducción lograda: <b style="color: #4ade80;">Ahorro del {stats['ahorro']}</b>
+                        </span>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                col_info, col_btn = st.columns([3, 1])
+                with col_btn:
+                    st.download_button(
+                        label="⬇️ Descargar",
+                        data=data,
+                        file_name=filename,
+                        mime="application/pdf",
+                        key=filename,
+                        use_container_width=True
+                    )
+                st.write("")
+
+    # Pie de página corporativo
+    st.markdown("""
+        <div class="footer">
+            Desarrollado con pasión por <b>AppLogic Solutions</b> 🚀 | Todos los derechos reservados.
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
