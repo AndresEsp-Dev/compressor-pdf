@@ -10,7 +10,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Estilos CSS personalizados para darle un toque visual profesional y atractivo
+# Estilos CSS personalizados para mantener la interfaz profesional y atractiva
 st.markdown("""
     <style>
     .main {
@@ -62,7 +62,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Encabezado visual atractivo
+# Encabezado visual de AppLogic Solutions
 st.markdown("""
     <div class="hero-container">
         <div class="company-badge">AppLogic Solutions</div>
@@ -75,37 +75,33 @@ st.markdown("""
 if "processed_files" not in st.session_state:
     st.session_state.processed_files = {}
 
-# Contenedor principal de subida
+# Contenedor de subida de archivos
 uploaded_files = st.file_uploader("📂 Selecciona o arrastra tus archivos PDF aquí", type="pdf", accept_multiple_files=True)
 
-# Selector de nivel con diseño limpio
+# Selector de nivel con las opciones exactas solicitadas
 nivel = st.selectbox(
     "⚙️ Selecciona el Nivel de Compresión",
     options=["bajo", "medio", "maximo"],
     format_func=lambda x: {
-        "bajo": "Bajo (Mejor Calidad Visual / Mínima Reducción del Peso)", 
+        "bajo": "Bajo (Mejor Calidad Visual / Minima Reducción del Peso)", 
         "medio": "Medio (Recomendado / Peso Equilibrado)", 
-        "maximo": "Máximo (Menor Calidad Visual / Menor Peso - Ideal para Pagarés)"
+        "maximo": "Maximo (Menor Calidad Visual / Menor Peso)"
     }[x],
     index=1
 )
 
 st.write("")
 
-# Botón de acción principal
 if uploaded_files:
     if st.button("🚀 Comprimir Archivos Ahora", type="primary", use_container_width=True):
         configuraciones = {
             "bajo": {"dpi": 150, "quality": 80},
-            .5: {"dpi": 120, "quality": 60}, # Espacio reservado
             "medio": {"dpi": 120, "quality": 60},
             "maximo": {"dpi": 90, "quality": 30}
         }
         params = configuraciones[nivel]
         
         st.session_state.processed_files = {}
-        
-        # Barra de progreso moderna
         progress_bar = st.progress(0)
         total_files = len(uploaded_files)
         
@@ -127,19 +123,20 @@ if uploaded_files:
                 doc_orig.close()
                 doc_nuevo.close()
                 
-                st.session_state.processed_files[f"optimizado_{uploaded_file.name}"] = output_bytes
+                # Formato de nombre dinámico: Optimizado-{nivel}-{nombre_original}.pdf
+                nombre_salida = f"Optimizado-{nivel}-{uploaded_file.name}"
+                st.session_state.processed_files[nombre_salida] = output_bytes
                 
-                # Actualizar barra de progreso
                 progress_bar.progress((i + 1) / total_files)
                 
         st.success("¡Todos los archivos han sido optimizados con éxito!")
 
-# Sección de descargas estéticamente organizada
+# Sección de resultados y descargas
 if st.session_state.processed_files:
     st.markdown("---")
     st.subheader("📦 Resultados Listos para Descargar")
     
-    # Botón global para descargar todo en ZIP
+    # Botón global para descargar todo en un archivo ZIP
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for filename, data in st.session_state.processed_files.items():
@@ -149,7 +146,7 @@ if st.session_state.processed_files:
     st.download_button(
         label="📥 Descargar Todos los Archivos (.ZIP)",
         data=zip_buffer,
-        file_name="documentos_optimizados_applogic.zip",
+        file_name="pdfs_optimizados_applogic.zip",
         mime="application/zip",
         type="primary",
         use_container_width=True
@@ -173,7 +170,7 @@ if st.session_state.processed_files:
                     use_container_width=True
                 )
 
-# Pie de página con marca personal
+# Pie de página corporativo
 st.markdown("""
     <div class="footer">
         Desarrollado con pasión por <b>AppLogic Solutions</b> 🚀 | Todos los derechos reservados.
