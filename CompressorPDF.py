@@ -3,39 +3,40 @@ import zipfile
 import streamlit as st
 import pymupdf
 
-# Configuración de la página
+# Configuración de la página en modo ancho para responsividad total
 st.set_page_config(
     page_title="Compresor de PDF | AppLogic Solutions", 
     page_icon="⚡", 
-    layout="centered"
+    layout="wide"
 )
 
-# Estilos CSS personalizados para mantener la interfaz profesional y atractiva
+# Estilos CSS avanzados para centrar elementos y optimizar la interfaz
 st.markdown("""
     <style>
-    .main {
-        background-color: #f8f9fa;
-    }
     .stApp {
-        max-width: 750px;
+        background-color: #0e1117;
+    }
+    .main-wrapper {
+        max-width: 950px;
         margin: 0 auto;
+        padding: 0 20px;
     }
     .hero-container {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        padding: 35px 30px;
+        padding: 40px 30px;
         border-radius: 16px;
         color: white;
         text-align: center;
         margin-bottom: 25px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
     }
     .hero-container h1 {
-        font-size: 2.2rem;
+        font-size: 2.5rem;
         margin-bottom: 10px;
         color: #ffffff;
     }
     .hero-container p {
-        font-size: 1.1rem;
+        font-size: 1.15rem;
         color: #94a3b8;
         margin-bottom: 0;
     }
@@ -43,7 +44,7 @@ st.markdown("""
         display: inline-block;
         background: #38bdf8;
         color: #0f172a;
-        padding: 5px 14px;
+        padding: 6px 16px;
         border-radius: 20px;
         font-weight: 700;
         font-size: 0.85rem;
@@ -51,128 +52,228 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 1px;
     }
+    .privacy-notice {
+        background-color: #1e293b;
+        border-left: 4px solid #38bdf8;
+        padding: 12px 18px;
+        border-radius: 6px;
+        color: #cbd5e1;
+        font-size: 0.95rem;
+        margin-bottom: 25px;
+        text-align: center;
+    }
+    .warning-notice {
+        background-color: #451a03;
+        border-left: 4px solid #f59e0b;
+        padding: 12px 18px;
+        border-radius: 6px;
+        color: #fde68a;
+        font-size: 0.95rem;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    .file-row {
+        background: #1e293b;
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 12px;
+        border: 1px solid #334155;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
     .footer {
         text-align: center;
-        margin-top: 40px;
+        margin-top: 50px;
         color: #64748b;
         font-size: 0.9rem;
-        border-top: 1px solid #e2e8f0;
+        border-top: 1px solid #1e293b;
         padding-top: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Encabezado visual de AppLogic Solutions
-st.markdown("""
-    <div class="hero-container">
-        <div class="company-badge">AppLogic Solutions</div>
-        <h1>Compresor de PDF Inteligente</h1>
-        <p>Optimiza el peso de tus documentos al instante conservando la mejor calidad visual.</p>
-    </div>
-""", unsafe_allow_html=True)
+with st.container():
+    st.markdown('<div class="main-wrapper">', unsafe_allow_html=True)
 
-# Inicializar memoria de sesión
-if "processed_files" not in st.session_state:
-    st.session_state.processed_files = {}
+    # Banner Fijo y Centrado de AppLogic Solutions
+    st.markdown("""
+        <div class="hero-container">
+            <div class="company-badge">AppLogic Solutions</div>
+            <h1>Compresor de PDF Inteligente</h1>
+            <p>Optimiza el peso de tus documentos al instante conservando la mejor calidad visual.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-# Contenedor de subida de archivos
-uploaded_files = st.file_uploader("📂 Selecciona o arrastra tus archivos PDF aquí", type="pdf", accept_multiple_files=True)
+    # Nota de Privacidad
+    st.markdown("""
+        <div class="privacy-notice">
+            🔒 <b>Política de Privacidad y Confidencialidad:</b> Tus archivos no se almacenan en ningún servidor ni base de datos externa. Todo el procesamiento se realiza de forma temporal y privada en memoria RAM exclusivamente para tu tranquilidad.
+        </div>
+    """, unsafe_allow_html=True)
 
-# Selector de nivel con las opciones exactas solicitadas
-nivel = st.selectbox(
-    "⚙️ Selecciona el Nivel de Compresión",
-    options=["bajo", "medio", "maximo"],
-    format_func=lambda x: {
-        "bajo": "Bajo (Mejor Calidad Visual / Minima Reducción del Peso)", 
-        "medio": "Medio (Recomendado / Peso Equilibrado)", 
-        "maximo": "Maximo (Menor Calidad Visual / Menor Peso)"
-    }[x],
-    index=1
-)
-
-st.write("")
-
-if uploaded_files:
-    if st.button("🚀 Comprimir Archivos Ahora", type="primary", use_container_width=True):
-        configuraciones = {
-            "bajo": {"dpi": 150, "quality": 80},
-            "medio": {"dpi": 120, "quality": 60},
-            "maximo": {"dpi": 90, "quality": 30}
-        }
-        params = configuraciones[nivel]
-        
+    # Inicializar estado de sesión
+    if "processed_files" not in st.session_state:
         st.session_state.processed_files = {}
-        progress_bar = st.progress(0)
-        total_files = len(uploaded_files)
-        
-        for i, uploaded_file in enumerate(uploaded_files):
-            with st.spinner(f"Procesando: {uploaded_file.name}..."):
-                bytes_data = uploaded_file.read()
-                
-                doc_orig = pymupdf.open(stream=bytes_data, filetype="pdf")
-                doc_nuevo = pymupdf.open()
-                
-                for pagina in doc_orig:
-                    pix = pagina.get_pixmap(dpi=params["dpi"])
-                    img_bytes = pix.tobytes("jpeg", jpg_quality=params["quality"])
-                    
-                    nueva_pagina = doc_nuevo.new_page(width=pagina.rect.width, height=pagina.rect.height)
-                    nueva_pagina.insert_image(nueva_pagina.rect, stream=img_bytes)
-                    
-                output_bytes = doc_nuevo.tobytes()
-                doc_orig.close()
-                doc_nuevo.close()
-                
-                # Formato de nombre dinámico: Optimizado-{nivel}-{nombre_original}.pdf
-                nombre_salida = f"Optimizado-{nivel}-{uploaded_file.name}"
-                st.session_state.processed_files[nombre_salida] = output_bytes
-                
-                progress_bar.progress((i + 1) / total_files)
-                
-        st.success("¡Todos los archivos han sido optimizados con éxito!")
+    if "file_stats" not in st.session_state:
+        st.session_state.file_stats = {}
+    if "uploader_counter" not in st.session_state:
+        st.session_state.uploader_counter = 0
 
-# Sección de resultados y descargas
-if st.session_state.processed_files:
-    st.markdown("---")
-    st.subheader("📦 Resultados Listos para Descargar")
-    
-    # Botón global para descargar todo en un archivo ZIP
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        for filename, data in st.session_state.processed_files.items():
-            zip_file.writestr(filename, data)
-    zip_buffer.seek(0)
-    
-    st.download_button(
-        label="📥 Descargar Todos los Archivos (.ZIP)",
-        data=zip_buffer,
-        file_name="pdfs_optimizados_applogic.zip",
-        mime="application/zip",
-        type="primary",
-        use_container_width=True
+    uploader_key = f"uploader_{st.session_state.uploader_counter}"
+
+    # Carga de archivos centrada
+    uploaded_files = st.file_uploader(
+        "📂 Selecciona o arrastra tus archivos PDF aquí", 
+        type="pdf", 
+        accept_multiple_files=True,
+        key=uploader_key
     )
-    
+
+    # Selector de nivel de compresión
+    nivel_opcion = st.selectbox(
+        "⚙️ Selecciona el Nivel de Compresión",
+        options=["bajo", "medio", "maximo"],
+        format_func=lambda x: {
+            "bajo": "Bajo — Mejor Calidad Visual (Mínima reducción de peso)", 
+            "medio": "Medio — Recomendado (Equilibrio ideal entre peso y calidad)", 
+            "maximo": "Máximo — Máxima Compresión (Menor peso posible para archivos pesados)"
+        }[x],
+        index=1
+    )
+
     st.write("")
-    
-    # Menú desplegable para descargas individuales uno a uno
-    with st.expander("📂 Ver y descargar archivos de forma individual", expanded=True):
-        for filename, data in st.session_state.processed_files.items():
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.text(filename)
-            with col2:
+
+    if uploaded_files:
+        if st.button("🚀 Iniciar Compresión de Archivos", type="primary", use_container_width=True):
+            configuraciones = {
+                "bajo": {"dpi": 150, "quality": 80},
+                "medio": {"dpi": 120, "quality": 60},
+                "maximo": {"dpi": 90, "quality": 30}
+            }
+            params = configuraciones[nivel_opcion]
+            
+            st.session_state.processed_files = {}
+            st.session_state.file_stats = {}
+            
+            progress_bar = st.progress(0)
+            total_files = len(uploaded_files)
+            
+            for i, uploaded_file in enumerate(uploaded_files):
+                with st.spinner(f"Procesando: {uploaded_file.name}..."):
+                    bytes_data = uploaded_file.read()
+                    size_orig = len(bytes_data) / 1024
+                    
+                    doc_orig = pymupdf.open(stream=bytes_data, filetype="pdf")
+                    doc_nuevo = pymupdf.open()
+                    
+                    for pagina in doc_orig:
+                        pix = pagina.get_pixmap(dpi=params["dpi"])
+                        img_bytes = pix.tobytes("jpeg", jpg_quality=params["quality"])
+                        
+                        nueva_pagina = doc_nuevo.new_page(width=pagina.rect.width, height=pagina.rect.height)
+                        nueva_pagina.insert_image(nueva_pagina.rect, stream=img_bytes)
+                        
+                    output_bytes = doc_nuevo.tobytes()
+                    size_comp = len(output_bytes) / 1024
+                    
+                    doc_orig.close()
+                    doc_nuevo.close()
+                    
+                    nombre_salida = f"Optimizado-{nivel_opcion}-{uploaded_file.name}"
+                    st.session_state.processed_files[nombre_salida] = output_bytes
+                    
+                    ahorro = 100 - (size_comp / size_orig * 100) if size_orig > 0 else 0
+                    st.session_state.file_stats[nombre_salida] = {
+                        "orig": f"{size_orig / 1024:.2f} MB" if size_orig > 1024 else f"{size_orig:.2f} KB",
+                        "comp": f"{size_comp / 1024:.2f} MB" if size_comp > 1024 else f"{size_comp:.2f} KB",
+                        "ahorro": f"{ahorro:.1f}%"
+                    }
+                    
+                    progress_bar.progress((i + 1) / total_files)
+                    
+            st.success("¡Todos los archivos han sido optimizados con éxito!")
+
+    # Sección de resultados y descargas
+    if st.session_state.processed_files:
+        st.markdown("---")
+        
+        # Fila superior de control con el botón de limpiar con icono de escoba y ZIP
+        col_title, col_action = st.columns([2, 2])
+        with col_title:
+            st.subheader("📦 Resultados Listos para Descargar")
+            
+        with col_action:
+            col_zip_btn, col_clean_btn = st.columns([2, 1])
+            with col_zip_btn:
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                    for filename, data in st.session_state.processed_files.items():
+                        zip_file.writestr(filename, data)
+                zip_buffer.seek(0)
+                
                 st.download_button(
-                    label="⬇️ Descargar",
-                    data=data,
-                    file_name=filename,
-                    mime="application/pdf",
-                    key=filename,
+                    label="📥 Descargar ZIP",
+                    data=zip_buffer,
+                    file_name="pdfs_optimizados_applogic.zip",
+                    mime="application/zip",
+                    type="primary",
                     use_container_width=True
                 )
+            with col_clean_btn:
+                confirmar_limpieza = st.checkbox("Confirmar")
+                if st.button("🧹 Limpiar", use_container_width=True):
+                    if confirmar_limpieza:
+                        st.session_state.processed_files = {}
+                        st.session_state.file_stats = {}
+                        st.session_state.uploader_counter += 1
+                        st.rerun()
+                    else:
+                        st.warning("Marque la casilla.")
 
-# Pie de página corporativo
-st.markdown("""
-    <div class="footer">
-        Desarrollado con pasión por <b>AppLogic Solutions</b> 🚀 | Todos los derechos reservados.
-    </div>
-""", unsafe_allow_html=True)
+        # Aviso Importante
+        st.markdown("""
+            <div class="warning-notice">
+                ⚠️ <b>Aviso Importante:</b> Antes de cerrar o recargar esta ventana, por favor asegúrese de descargar todos sus archivos procesados, ya que se eliminarán automáticamente de la memoria una vez finalice su sesión.
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.write("")
+        
+        # Lista de archivos con botón de descarga individual en la misma línea
+        with st.expander("📂 Ver detalles de reducción de peso y descargar archivos de forma individual", expanded=True):
+            for filename, data in st.session_state.processed_files.items():
+                stats = st.session_state.file_stats.get(filename, {"orig": "N/A", "comp": "N/A", "ahorro": "N/A"})
+                
+                col_file_info, col_file_btn = st.columns([4, 1])
+                with col_file_info:
+                    st.markdown(f"""
+                        <div style="background: #1e293b; padding: 12px 15px; border-radius: 8px; border: 1px solid #334155;">
+                            <b>📄 {filename}</b><br>
+                            <span style="color: #94a3b8; font-size: 0.85rem;">
+                                Original: <b>{stats['orig']}</b> | 
+                                Optimizado: <b style="color: #38bdf8;">{stats['comp']}</b> | 
+                                Ahorro: <b style="color: #4ade80;">{stats['ahorro']}</b>
+                            </span>
+                        </div>
+                    """, unsafe_allow_html=True)
+                with col_file_btn:
+                    st.write("") # Pequeño ajuste visual de margen vertical
+                    st.download_button(
+                        label="⬇️ Descargar",
+                        data=data,
+                        file_name=filename,
+                        mime="application/pdf",
+                        key=filename,
+                        use_container_width=True
+                    )
+                st.write("")
+
+    # Pie de página corporativo
+    st.markdown("""
+        <div class="footer">
+            Desarrollado con pasión por <b>AppLogic Solutions</b> 🚀 | Todos los derechos reservados.
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
