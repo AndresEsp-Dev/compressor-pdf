@@ -3,19 +3,84 @@ import zipfile
 import streamlit as st
 import pymupdf
 
-st.set_page_config(page_title="Compresor de PDF", page_icon="📄", layout="centered")
+# Configuración de la página
+st.set_page_config(
+    page_title="Compresor de PDF | AppLogic Solutions", 
+    page_icon="⚡", 
+    layout="centered"
+)
 
-st.title("📄 Compresor de PDF Profesional")
-st.write("Sube uno o varios archivos PDF, selecciona el nivel de compresión y descárgalos optimizados.")
+# Estilos CSS personalizados para mantener la interfaz profesional y atractiva
+st.markdown("""
+    <style>
+    .main {
+        background-color: #f8f9fa;
+    }
+    .stApp {
+        max-width: 750px;
+        margin: 0 auto;
+    }
+    .hero-container {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        padding: 35px 30px;
+        border-radius: 16px;
+        color: white;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    .hero-container h1 {
+        font-size: 2.2rem;
+        margin-bottom: 10px;
+        color: #ffffff;
+    }
+    .hero-container p {
+        font-size: 1.1rem;
+        color: #94a3b8;
+        margin-bottom: 0;
+    }
+    .company-badge {
+        display: inline-block;
+        background: #38bdf8;
+        color: #0f172a;
+        padding: 5px 14px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .footer {
+        text-align: center;
+        margin-top: 40px;
+        color: #64748b;
+        font-size: 0.9rem;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# Inicializar session_state para mantener los archivos procesados visibles tras las descargas
+# Encabezado visual de AppLogic Solutions
+st.markdown("""
+    <div class="hero-container">
+        <div class="company-badge">AppLogic Solutions</div>
+        <h1>Compresor de PDF Inteligente</h1>
+        <p>Optimiza el peso de tus documentos al instante conservando la mejor calidad visual.</p>
+    </div>
+""", unsafe_allow_html=True)
+
+# Inicializar memoria de sesión
 if "processed_files" not in st.session_state:
     st.session_state.processed_files = {}
 
-uploaded_files = st.file_uploader("Elige uno o más archivos PDF", type="pdf", accept_multiple_files=True)
+# Contenedor de subida de archivos
+uploaded_files = st.file_uploader("📂 Selecciona o arrastra tus archivos PDF aquí", type="pdf", accept_multiple_files=True)
 
+# Selector de nivel con las opciones exactas solicitadas
 nivel = st.selectbox(
-    "Nivel de Compresión",
+    "⚙️ Selecciona el Nivel de Compresión",
     options=["bajo", "medio", "maximo"],
     format_func=lambda x: {
         "bajo": "Bajo (Mejor Calidad Visual / Minima Reducción del Peso)", 
@@ -25,8 +90,10 @@ nivel = st.selectbox(
     index=1
 )
 
+st.write("")
+
 if uploaded_files:
-    if st.button("Comprimir Archivos", type="primary"):
+    if st.button("🚀 Comprimir Archivos Ahora", type="primary", use_container_width=True):
         configuraciones = {
             "bajo": {"dpi": 150, "quality": 80},
             "medio": {"dpi": 120, "quality": 60},
@@ -35,9 +102,11 @@ if uploaded_files:
         params = configuraciones[nivel]
         
         st.session_state.processed_files = {}
+        progress_bar = st.progress(0)
+        total_files = len(uploaded_files)
         
-        for uploaded_file in uploaded_files:
-            with st.spinner(f"Procesando {uploaded_file.name}..."):
+        for i, uploaded_file in enumerate(uploaded_files):
+            with st.spinner(f"Procesando: {uploaded_file.name}..."):
                 bytes_data = uploaded_file.read()
                 
                 doc_orig = pymupdf.open(stream=bytes_data, filetype="pdf")
@@ -54,14 +123,20 @@ if uploaded_files:
                 doc_orig.close()
                 doc_nuevo.close()
                 
-                st.session_state.processed_files[f"optimizado_{uploaded_file.name}"] = output_bytes
+                # Formato de nombre dinámico: Optimizado-{nivel}-{nombre_original}.pdf
+                nombre_salida = f"Optimizado-{nivel}-{uploaded_file.name}"
+                st.session_state.processed_files[nombre_salida] = output_bytes
+                
+                progress_bar.progress((i + 1) / total_files)
+                
+        st.success("¡Todos los archivos han sido optimizados con éxito!")
 
-# Mostrar resultados almacenados en session_state para evitar que desaparezcan al interactuar
+# Sección de resultados y descargas
 if st.session_state.processed_files:
-    st.write("---")
-    st.subheader("📦 Archivos listos para descargar:")
+    st.markdown("---")
+    st.subheader("📦 Resultados Listos para Descargar")
     
-    # Botón principal para descargar todo en un archivo ZIP
+    # Botón global para descargar todo en un archivo ZIP
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for filename, data in st.session_state.processed_files.items():
@@ -69,22 +144,35 @@ if st.session_state.processed_files:
     zip_buffer.seek(0)
     
     st.download_button(
-        label="📥 Descargar Todos en un ZIP",
+        label="📥 Descargar Todos los Archivos (.ZIP)",
         data=zip_buffer,
-        file_name="pdfs_optimizados.zip",
+        file_name="pdfs_optimizados_applogic.zip",
         mime="application/zip",
-        type="primary"
+        type="primary",
+        use_container_width=True
     )
     
     st.write("")
     
-    # Menú desplegable (Expander) con la lista de archivos para descarga individual
-    with st.expander("📂 Ver archivos individuales para descargar uno a uno", expanded=True):
+    # Menú desplegable para descargas individuales uno a uno
+    with st.expander("📂 Ver y descargar archivos de forma individual", expanded=True):
         for filename, data in st.session_state.processed_files.items():
-            st.download_button(
-                label=f"⬇️ Descargar {filename}",
-                data=data,
-                file_name=filename,
-                mime="application/pdf",
-                key=filename
-            )
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.text(filename)
+            with col2:
+                st.download_button(
+                    label="⬇️ Descargar",
+                    data=data,
+                    file_name=filename,
+                    mime="application/pdf",
+                    key=filename,
+                    use_container_width=True
+                )
+
+# Pie de página corporativo
+st.markdown("""
+    <div class="footer">
+        Desarrollado con pasión por <b>AppLogic Solutions</b> 🚀 | Todos los derechos reservados.
+    </div>
+""", unsafe_allow_html=True)
