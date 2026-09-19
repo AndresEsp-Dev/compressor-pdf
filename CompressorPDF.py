@@ -191,6 +191,7 @@ with st.container():
 
         if st.session_state.processed_files:
             st.markdown("---")
+            # CORREGIDO AQUÍ: se pasan proporciones
             col_title, col_action = st.columns()
             with col_title:
                 st.subheader("📦 Resultados Listos para Descargar")
