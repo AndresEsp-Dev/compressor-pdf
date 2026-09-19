@@ -329,12 +329,10 @@ with st.container():
 
             if pag_inicio <= pag_fin:
                 if st.button("✂️ Dividir y Extraer Rango", type="primary", use_container_width=True, key="btn_dividir"):
-                    # Reabrir para procesamiento fresco
                     archivo_dividir.seek(0)
                     doc_src = pymupdf.open(stream=archivo_dividir.read(), filetype="pdf")
                     doc_part = pymupdf.open()
                     
-                    # Convertir a índice base 0
                     doc_part.insert_pdf(doc_src, from_page=pag_inicio-1, to_page=pag_fin-1)
                     part_bytes = doc_part.tobytes()
                     doc_src.close()
