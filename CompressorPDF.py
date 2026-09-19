@@ -5,19 +5,19 @@ import pymupdf
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Suite PDF | AppLogic Solutions", 
+    page_title="Compresor de PDF | AppLogic Solutions", 
     page_icon="⚡", 
     layout="centered"
 )
 
-# Estilos CSS personalizados
+# Estilos CSS personalizados para mantener la interfaz profesional y atractiva
 st.markdown("""
     <style>
     .main {
         background-color: #f8f9fa;
     }
     .stApp {
-        max-width: 800px;
+        max-width: 750px;
         margin: 0 auto;
     }
     .hero-container {
@@ -51,16 +51,6 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 1px;
     }
-    .warning-notice {
-        background-color: #fef3c7;
-        border-left: 4px solid #f59e0b;
-        padding: 12px 18px;
-        border-radius: 6px;
-        color: #92400e;
-        font-size: 0.95rem;
-        margin-bottom: 20px;
-        text-align: center;
-    }
     .footer {
         text-align: center;
         margin-top: 40px;
@@ -76,210 +66,109 @@ st.markdown("""
 st.markdown("""
     <div class="hero-container">
         <div class="company-badge">AppLogic Solutions</div>
-        <h1>Suite Inteligente de Documentos PDF</h1>
-        <p>Comprime, une y divide tus archivos de forma profesional y segura.</p>
+        <h1>Compresor de PDF Inteligente</h1>
+        <p>Optimiza el peso de tus documentos al instante conservando la mejor calidad visual.</p>
     </div>
 """, unsafe_allow_html=True)
 
-# Pestañas principales
-tab_comprimir, tab_unir, tab_dividir = st.tabs(["🗜️ Comprimir PDF", "📎 Unir PDFs", "✂️ Dividir PDF"])
+# Inicializar memoria de sesión
+if "processed_files" not in st.session_state:
+    st.session_state.processed_files = {}
 
-# ==========================================
-# PESTAÑA 1: COMPRIMIR PDF (Base funcional v3)
-# ==========================================
-with tab_comprimir:
-    if "processed_files" not in st.session_state:
+# Contenedor de subida de archivos
+uploaded_files = st.file_uploader("📂 Selecciona o arrastra tus archivos PDF aquí", type="pdf", accept_multiple_files=True)
+
+# Selector de nivel con las opciones exactas solicitadas
+nivel = st.selectbox(
+    "⚙️ Selecciona el Nivel de Compresión",
+    options=["bajo", "medio", "maximo"],
+    format_func=lambda x: {
+        "bajo": "Bajo (Mejor Calidad Visual / Minima Reducción del Peso)", 
+        "medio": "Medio (Recomendado / Peso Equilibrado)", 
+        "maximo": "Maximo (Menor Calidad Visual / Menor Peso)"
+    }[x],
+    index=1
+)
+
+st.write("")
+
+if uploaded_files:
+    if st.button("🚀 Comprimir Archivos Ahora", type="primary", use_container_width=True):
+        configuraciones = {
+            "bajo": {"dpi": 150, "quality": 80},
+            "medio": {"dpi": 120, "quality": 60},
+            "maximo": {"dpi": 90, "quality": 30}
+        }
+        params = configuraciones[nivel]
+        
         st.session_state.processed_files = {}
+        progress_bar = st.progress(0)
+        total_files = len(uploaded_files)
+        
+        for i, uploaded_file in enumerate(uploaded_files):
+            with st.spinner(f"Procesando: {uploaded_file.name}..."):
+                bytes_data = uploaded_file.read()
+                
+                doc_orig = pymupdf.open(stream=bytes_data, filetype="pdf")
+                doc_nuevo = pymupdf.open()
+                
+                for pagina in doc_orig:
+                    pix = pagina.get_pixmap(dpi=params["dpi"])
+                    img_bytes = pix.tobytes("jpeg", jpg_quality=params["quality"])
+                    
+                    nueva_pagina = doc_nuevo.new_page(width=pagina.rect.width, height=pagina.rect.height)
+                    nueva_pagina.insert_image(nueva_pagina.rect, stream=img_bytes)
+                    
+                output_bytes = doc_nuevo.tobytes()
+                doc_orig.close()
+                doc_nuevo.close()
+                
+                # Formato de nombre dinámico: Optimizado-{nivel}-{nombre_original}.pdf
+                nombre_salida = f"Optimizado-{nivel}-{uploaded_file.name}"
+                st.session_state.processed_files[nombre_salida] = output_bytes
+                
+                progress_bar.progress((i + 1) / total_files)
+                
+        st.success("¡Todos los archivos han sido optimizados con éxito!")
 
-    uploaded_files = st.file_uploader("📂 Selecciona o arrastra tus archivos PDF aquí", type="pdf", accept_multiple_files=True, key="comp_up")
-
-    nivel = st.selectbox(
-        "⚙️ Selecciona el Nivel de Compresión",
-        options=["bajo", "medio", "maximo"],
-        format_func=lambda x: {
-            "bajo": "Bajo (Mejor Calidad Visual / Minima Reducción del Peso)", 
-            "medio": "Medio (Recomendado / Peso Equilibrado)", 
-            "maximo": "Maximo (Menor Calidad Visual / Menor Peso)"
-        }[x],
-        index=1,
-        key="comp_niv"
+# Sección de resultados y descargas
+if st.session_state.processed_files:
+    st.markdown("---")
+    st.subheader("📦 Resultados Listos para Descargar")
+    
+    # Botón global para descargar todo en un archivo ZIP
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for filename, data in st.session_state.processed_files.items():
+            zip_file.writestr(filename, data)
+    zip_buffer.seek(0)
+    
+    st.download_button(
+        label="📥 Descargar Todos los Archivos (.ZIP)",
+        data=zip_buffer,
+        file_name="pdfs_optimizados_applogic.zip",
+        mime="application/zip",
+        type="primary",
+        use_container_width=True
     )
-
+    
     st.write("")
-
-    if uploaded_files:
-        if st.button("🚀 Comprimir Archivos Ahora", type="primary", use_container_width=True, key="comp_btn"):
-            configuraciones = {
-                "bajo": {"dpi": 150, "quality": 80},
-                "medio": {"dpi": 120, "quality": 60},
-                "maximo": {"dpi": 90, "quality": 30}
-            }
-            params = configuraciones[nivel]
-            
-            st.session_state.processed_files = {}
-            progress_bar = st.progress(0)
-            total_files = len(uploaded_files)
-            
-            for i, uploaded_file in enumerate(uploaded_files):
-                with st.spinner(f"Procesando: {uploaded_file.name}..."):
-                    bytes_data = uploaded_file.read()
-                    
-                    doc_orig = pymupdf.open(stream=bytes_data, filetype="pdf")
-                    doc_nuevo = pymupdf.open()
-                    
-                    for pagina in doc_orig:
-                        pix = pagina.get_pixmap(dpi=params["dpi"])
-                        img_bytes = pix.tobytes("jpeg", jpg_quality=params["quality"])
-                        
-                        nueva_pagina = doc_nuevo.new_page(width=pagina.rect.width, height=pagina.rect.height)
-                        nueva_pagina.insert_image(nueva_pagina.rect, stream=img_bytes)
-                        
-                    output_bytes = doc_nuevo.tobytes()
-                    doc_orig.close()
-                    doc_nuevo.close()
-                    
-                    nombre_salida = f"Optimizado-{nivel}-{uploaded_file.name}"
-                    st.session_state.processed_files[nombre_salida] = output_bytes
-                    
-                    progress_bar.progress((i + 1) / total_files)
-                    
-            st.success("¡Todos los archivos han sido optimizados con éxito!")
-
-    if st.session_state.processed_files:
-        st.markdown("---")
-        st.subheader("📦 Resultados Listos para Descargar")
-        
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            for filename, data in st.session_state.processed_files.items():
-                zip_file.writestr(filename, data)
-        zip_buffer.seek(0)
-        
-        st.download_button(
-            label="📥 Descargar Todos los Archivos (.ZIP)",
-            data=zip_buffer,
-            file_name="pdfs_optimizados_applogic.zip",
-            mime="application/zip",
-            type="primary",
-            use_container_width=True,
-            key="comp_zip"
-        )
-        
-        st.write("")
-        
-        with st.expander("📂 Ver y descargar archivos de forma individual", expanded=True):
-            for filename, data in st.session_state.processed_files.items():
-                col1, col2 = st.columns()
-                with col1:
-                    st.text(filename)
-                with col2:
-                    st.download_button(
-                        label="⬇️ Descargar",
-                        data=data,
-                        file_name=filename,
-                        mime="application/pdf",
-                        key=f"comp_dl_{filename}",
-                        use_container_width=True
-                    )
-
-# ==========================================
-# PESTAÑA 2: UNIR PDFS
-# ==========================================
-with tab_unir:
-    st.subheader("📎 Unir Varios PDFs en uno solo")
-    archivos_unir = st.file_uploader(
-        "Selecciona los archivos PDF en el orden que deseas unirlos", 
-        type="pdf", 
-        accept_multiple_files=True, 
-        key="unir_up"
-    )
-    nombre_salida_unido = st.text_input("Nombre del archivo final", value="Documento_Unido_AppLogic.pdf", key="unir_nom")
-
-    if archivos_unir and len(archivos_unir) > 1:
-        if st.button("🔗 Unir PDFs Ahora", type="primary", use_container_width=True, key="unir_btn"):
-            with st.spinner("Uniendo documentos..."):
-                doc_final = pymupdf.open()
-                for f in archivos_unir:
-                    doc_temp = pymupdf.open(stream=f.read(), filetype="pdf")
-                    doc_final.insert_pdf(doc_temp)
-                    doc_temp.close()
-                
-                unido_bytes = doc_final.tobytes()
-                doc_final.close()
-                
-                st.success("¡Documentos unidos con éxito!")
-                st.markdown("""
-                    <div class="warning-notice">
-                        ⚠️ <b>Aviso Importante:</b> Antes de cerrar o recargar esta ventana, por favor descargue el archivo unificado.
-                    </div>
-                """, unsafe_allow_html=True)
-                
+    
+    # Menú desplegable para descargas individuales uno a uno
+    with st.expander("📂 Ver y descargar archivos de forma individual", expanded=True):
+        for filename, data in st.session_state.processed_files.items():
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.text(filename)
+            with col2:
                 st.download_button(
-                    label="📥 Descargar PDF Unido",
-                    data=unido_bytes,
-                    file_name=nombre_salida_unido if nombre_salida_unido.endswith(".pdf") else f"{nombre_salida_unido}.pdf",
+                    label="⬇️ Descargar",
+                    data=data,
+                    file_name=filename,
                     mime="application/pdf",
-                    type="primary",
-                    use_container_width=True,
-                    key="unir_dl"
+                    key=filename,
+                    use_container_width=True
                 )
-    elif archivos_unir and len(archivos_unir) == 1:
-        st.info("ℹ️ Por favor selecciona al menos 2 archivos PDF para realizar la unión.")
-
-# ==========================================
-# PESTAÑA 3: DIVIDIR PDF
-# ==========================================
-with tab_dividir:
-    st.subheader("✂️ Dividir / Extraer Rango de Páginas de un PDF")
-    archivo_dividir = st.file_uploader(
-        "Sube el archivo PDF que deseas dividir", 
-        type="pdf", 
-        accept_multiple_files=False, 
-        key="div_up"
-    )
-
-    if archivo_dividir:
-        doc_div = pymupdf.open(stream=archivo_dividir.read(), filetype="pdf")
-        total_paginas = len(doc_div)
-        st.info(f"📄 El documento cargado tiene un total de **{total_paginas} página(s)**.")
-
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            pag_inicio = st.number_input("Página inicial (desde 1)", min_value=1, max_value=total_paginas, value=1, key="div_ini")
-        with col_p2:
-            pag_fin = st.number_input("Página final (hasta)", min_value=1, max_value=total_paginas, value=min(2, total_paginas), key="div_fin_num")
-
-        doc_div.close()
-
-        if pag_inicio <= pag_fin:
-            if st.button("✂️ Dividir y Extraer Rango", type="primary", use_container_width=True, key="div_btn"):
-                archivo_dividir.seek(0)
-                doc_src = pymupdf.open(stream=archivo_dividir.read(), filetype="pdf")
-                doc_part = pymupdf.open()
-                
-                doc_part.insert_pdf(doc_src, from_page=pag_inicio-1, to_page=pag_fin-1)
-                part_bytes = doc_part.tobytes()
-                doc_src.close()
-                doc_part.close()
-
-                st.success(f"¡Páginas {pag_inicio} a {pag_fin} extraídas con éxito!")
-                st.markdown("""
-                    <div class="warning-notice">
-                        ⚠️ <b>Aviso Importante:</b> Antes de cerrar o recargar esta ventana, por favor descargue el archivo dividido.
-                    </div>
-                """, unsafe_allow_html=True)
-
-                st.download_button(
-                    label="📥 Descargar Páginas Extraídas (PDF)",
-                    data=part_bytes,
-                    file_name=f"Dividido_pag_{pag_inicio}_a_{pag_fin}_{archivo_dividir.name}",
-                    mime="application/pdf",
-                    type="primary",
-                    use_container_width=True,
-                    key="div_dl"
-                )
-        else:
-            st.error("❌ La página inicial no puede ser mayor que la página final.")
 
 # Pie de página corporativo
 st.markdown("""
